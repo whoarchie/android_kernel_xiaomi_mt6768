@@ -8,16 +8,25 @@ export LINKER="ld.lld"
 export SEND_TO_TG=1
 export chat_id="-1002088104319"
 export token="6410284454:AAESx0jgdzy-z4W0t-Oo53NaaS-mhGka8_4"
+#KernelSU
+#choice 'yes' or 'no
+export KSU="yes"
+# Specify compiler.
+# 'sdclang' or 'gcc' or 'ew' or 'aosp' or 'azure' or 'neutron' or 'proton' or 'eva'
+export COMPILER="ew"
+#Any Kernel Branch
+export dev_ak3="lancelot"
 # Telegram && Output
 export kver="Test"
 export CODENAME="lancelot"
 export DEVICE="Xiaomi Redmi 9 (${CODENAME})"
 export BUILDER="Dreams"
 export BUILD_HOST="Soulvibe"
+export SUBLEVEL="v4.14.$(cat "${MainPath}/Makefile" | grep "SUBLEVEL =" | sed 's/SUBLEVEL = *//g')"
 export TIMESTAMP=$(date +"%Y%m%d")-$(date +"%H%M%S")
 export KBUILD_COMPILER_STRING=$(./clang/bin/clang -v 2>&1 | head -n 1 | sed 's/(https..*//' | sed 's/ version//')
 export FW="R-Vendor"
-export zipn="Liquid-${CODENAME}-${FW}-${TIMESTAMP}"
+export zipn="Paradox-Balanced-SLMK-${KSU}-${CODENAME}-${FW}-${TIMESTAMP}"
 # Needed by script
 export PATH="${PWD}/clang/bin:${PATH}"
 PROCS=$(nproc --all)
@@ -58,16 +67,86 @@ fi
 if [ ! -d "${PWD}/clang" ]; then
     echo -e "${RED}error:${NOCOLOR} /clang not found!"
     echo "have you clone the clang?"
-    exit 2
-fi
+    elif
+    echo "Cloning Clang"
+    if [ $COMPILER = "gcc" ]
+	then
+		msger -n "|| Cloning GCC 4.9 ||"
+		git clone --depth=1 https://github.com/KudProject/aarch64-linux-android-4.9 gcc64
+		git clone --depth=1 https://github.com/KudProject/arm-linux-androideabi-4.9 gcc32
+  
+  		# Toolchain Directory defaults to gcc
+		GCC64_DIR=$KERNEL_DIR/gcc64
+		GCC32_DIR=$KERNEL_DIR/gcc32
 
+	elif [ $COMPILER = "ew" ]
+	then
+		msger -n "|| Cloning ElectroWizard clang ||"
+   		git clone --depth=1 https://gitlab.com/Tiktodz/electrowizard-clang.git -b 16 --single-branch ewclang
+  
+		# Toolchain Directory defaults to ewclang
+		TC_DIR=$KERNEL_DIR/ewclang
+
+	elif [ $COMPILER = "sdclang" ]
+	then
+		msger -n "|| Cloning SDClang ||"
+		git clone --depth=1 https://gitlab.com/VoidUI/snapdragon-clang sdclang
+
+  		msger -n "|| Cloning GCC 4.9 ||"
+		git clone --depth=1 https://github.com/Kneba/aarch64-linux-android-4.9 gcc64
+		git clone --depth=1 https://github.com/Kneba/arm-linux-androideabi-4.9 gcc32
+
+		# Toolchain Directory defaults to sdclang
+		TC_DIR=$KERNEL_DIR/sdclang
+  
+		# Toolchain Directory defaults to gcc
+		GCC64_DIR=$KERNEL_DIR/gcc64
+		GCC32_DIR=$KERNEL_DIR/gcc32
+  
+     elif [ "$COMPILER" = "aosp" ]
+     then
+          msg "Clone latest aosp clang toolchain"
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r498229.tar.gz -O "aosp-clang.tar.gz"
+          mkdir clang-llvm && tar -xf aosp-clang.tar.gz -C clang-llvm && rm -rf aosp-clang.tar.gz
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 gcc64
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 -b lineage-19.1 gcc32
+  
+     elif [ "$COMPILER" = "azure" ]
+     then
+          msg "Clone latest azure clang toolchain"
+          git clone --depth=1 https://gitlab.com/Panchajanya1999/azure-clang.git clang-llvm
+         
+     elif [ "$COMPILER" = "neutron" ]
+     then
+          msg "Clone latest neutron clang toolchain"
+          mkdir clang-llvm
+          cd clang-llvm
+          curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
+          chmod +x antman && bash antman -S=latest
+          bash antman --patch=glibc
+          cd ..
+          
+     elif [ "$COMPILER" = "proton" ]
+     then
+          msg "Clone latest proton clang toolchain"
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang-llvm
+  
+     elif [ "$COMPILER" = "eva" ]
+     then
+          msg "Clone latest eva gcc toolchain"
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm64.git gcc-arm64
+          git clone --depth=1 https://github.com/mvaisakh/gcc-arm.git gcc-arm
+     fi
+fi
 
 if [ ! -d "${PWD}/anykernel" ]; then
     echo -e "${RED}error:${NOCOLOR} /anykernel not found!"
     echo "have you clone the anykernel?"
-    exit 2
+    then
+    echo "Cloning AnyKernel3"
+    any kernel : git clone  https://github.com/Soulvibe-Stuff/AnyKernel3.git -b ${dev_ak3} anykernel
 fi
-
+    
 # Exit while got interrupt signal
 exit_on_signal_interrupt() {
     echo -e "\n\n${RED}Got interrupt signal.${NOCOLOR}"
@@ -167,12 +246,26 @@ show_defconfigs() {
     fi
 }
 
+kernelsu() {
+    if [ "$KSU" = "yes" ];then
+      KERNEL_VARIANT="${KERNEL_VARIANT}-KernelSU"
+      if [ ! -f "${MainPath}/KernelSU/README.md" ]; then
+        cd ${MainPath}
+        curl -LSsk "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+        sed -i "s/CONFIG_KSU=n/CONFIG_KSU=y/g" arch/${ARCH}/configs/${DEFCONFIG}
+      fi
+      KERNELSU_VERSION="$((10000 + $(cd KernelSU && git rev-list --count HEAD) + 200))"
+      git submodule update --init; cd ${MainPath}/KernelSU; git pull origin main; cd ..
+    fi
+}
+
 compile_kernel() {
     rm ./out/arch/${ARCH}/boot/Image.gz-dtb 2>/dev/null
 
     export KBUILD_BUILD_USER=${BUILDER}
     export KBUILD_BUILD_HOST=${BUILD_HOST}
     export LOCALVERSION=${localversion}
+    sed -i 's/^CONFIG_LOCALVERSION=".*"/CONFIG_LOCALVERSION="-Paradox"/' arch/${ARCH}/configs/${DEFCONFIG}
 
     make O=out ARCH=${ARCH} ${DEFCONFIG}
 
@@ -209,6 +302,7 @@ else
 fi
     # Zip the kernel
     cd ./anykernel
+    sed -i "s/kernel.string=.*/kernel.string=${zipn} ${SUBLEVEL} ${KSU} by ${BUILDER} for ${MODEL} (${CODENAME})/g" anykernel.sh
     zip -r9 "${zipn}".zip * -x .git README.md *placeholder
     cd ..
 
