@@ -28,7 +28,9 @@ export KBUILD_COMPILER_STRING=$(./clang/bin/clang -v 2>&1 | head -n 1 | sed 's/(
 export FW="R-Vendor"
 export zipn="Paradox-Balanced-SLMK-${KSU}-${CODENAME}-${FW}-${TIMESTAMP}"
 # Needed by script
-export PATH="${PWD}/clang/bin:${PATH}"
+CrossCompileFlagTriple="aarch64-linux-gnu-"
+CrossCompileFlag64="aarch64-linux-gnu-"
+CrossCompileFlag32="arm-linux-gnueabi-"
 PROCS=$(nproc --all)
 
 # Text coloring
@@ -76,8 +78,8 @@ if [ ! -d "${PWD}/clang" ]; then
 		git clone --depth=1 https://github.com/KudProject/arm-linux-androideabi-4.9 gcc32
   
   		# Toolchain Directory defaults to gcc
-		GCC64_DIR=$KERNEL_DIR/gcc64
-		GCC32_DIR=$KERNEL_DIR/gcc32
+		GCC64_DIR=${PWD}/gcc64
+		GCC32_DIR=${PWD}/gcc32
 
 	elif [ $COMPILER = "ew" ]
 	then
@@ -85,7 +87,7 @@ if [ ! -d "${PWD}/clang" ]; then
    		git clone --depth=1 https://gitlab.com/Tiktodz/electrowizard-clang.git -b 16 --single-branch ewclang
   
 		# Toolchain Directory defaults to ewclang
-		TC_DIR=$KERNEL_DIR/ewclang
+		TC_DIR=${PWD}/ewclang
 
 	elif [ $COMPILER = "sdclang" ]
 	then
@@ -97,11 +99,11 @@ if [ ! -d "${PWD}/clang" ]; then
 		git clone --depth=1 https://github.com/Kneba/arm-linux-androideabi-4.9 gcc32
 
 		# Toolchain Directory defaults to sdclang
-		TC_DIR=$KERNEL_DIR/sdclang
+		TC_DIR=${PWD}/sdclang
   
 		# Toolchain Directory defaults to gcc
-		GCC64_DIR=$KERNEL_DIR/gcc64
-		GCC32_DIR=$KERNEL_DIR/gcc32
+		GCC64_DIR=${PWD}/gcc64
+		GCC32_DIR=${PWD}/gcc32
   
      elif [ "$COMPILER" = "aosp" ]
      then
@@ -114,28 +116,42 @@ if [ ! -d "${PWD}/clang" ]; then
      elif [ "$COMPILER" = "azure" ]
      then
           msg "Clone latest azure clang toolchain"
-          git clone --depth=1 https://gitlab.com/Panchajanya1999/azure-clang.git clang-llvm
+          git clone --depth=1 https://gitlab.com/Panchajanya1999/azure-clang.git azure
+ 
+          # Toolchain Directory defaults to azure
+		TC_DIR=${PWD}/azure
          
      elif [ "$COMPILER" = "neutron" ]
      then
           msg "Clone latest neutron clang toolchain"
-          mkdir clang-llvm
-          cd clang-llvm
+          mkdir neutron
+          cd neutron
           curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
           chmod +x antman && bash antman -S=latest
           bash antman --patch=glibc
           cd ..
+
+         # Toolchain Directory defaults to neutron
+		      TC_DIR=${PWD}/neutron
           
      elif [ "$COMPILER" = "proton" ]
      then
           msg "Clone latest proton clang toolchain"
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang-llvm
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git proton
+
+         # Toolchain Directory defaults to proton
+		TC_DIR=${PWD}/proton
   
      elif [ "$COMPILER" = "eva" ]
      then
           msg "Clone latest eva gcc toolchain"
           git clone --depth=1 https://github.com/mvaisakh/gcc-arm64.git gcc-arm64
           git clone --depth=1 https://github.com/mvaisakh/gcc-arm.git gcc-arm
+
+     
+  		# Toolchain Directory defaults to eva
+		GCC64_DIR=${PWD}/gcc-arm64
+		GCC32_DIR=${PWD}/gcc-arm
      fi
 fi
 
@@ -157,7 +173,7 @@ trap exit_on_signal_interrupt SIGINT
 help_msg() {
     echo "Usage: bash kentot.sh --choose=[Function]"
     echo ""
-    echo "Some functions on Origami Kernel Builder:"
+    echo "Some functions on Soulvibe Kernel Builder:"
     echo "1. Build a whole Kernel"
     echo "2. Regenerate defconfig"
     echo "3. Open menuconfig"
@@ -262,6 +278,7 @@ kernelsu() {
 compile_kernel() {
     rm ./out/arch/${ARCH}/boot/Image.gz-dtb 2>/dev/null
 
+    export PATH="${PWD}/${TC_DIR}/bin/clang:${PATH}"
     export KBUILD_BUILD_USER=${BUILDER}
     export KBUILD_BUILD_HOST=${BUILD_HOST}
     export LOCALVERSION=${localversion}
@@ -280,9 +297,9 @@ compile_kernel() {
         OBJDUMP=llvm-objdump \
         STRIP=llvm-strip \
         CC="clang" \
-        CLANG_TRIPLE=aarch64-linux-gnu- \
-        CROSS_COMPILE=aarch64-linux-gnu- \
-        CROSS_COMPILE_ARM32=arm-linux-gnueabihf- \
+        CLANG_TRIPLE=${CrossCompileFlagTriple} \
+        CROSS_COMPILE=${CrossCompileFlag64} \
+        CROSS_COMPILE_ARM32=${CrossCompileFlag32} \
         CONFIG_NO_ERROR_ON_MISMATCH=y \
         CONFIG_DEBUG_SECTION_MISMATCH=y \
         V=0 2>&1 | tee out/build.log
